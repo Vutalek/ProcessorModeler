@@ -1,0 +1,2 @@
+Transmission time: 98.28522944450378 seconds.
+Script execution time: 290.5169656276703 seconds.

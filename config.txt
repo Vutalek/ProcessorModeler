@@ -1,0 +1,53 @@
+Настройка формирователя Ethernet потока:
+
+ETHERNET
+[
+    IPG = 3.84 ns
+    Payload = 1500 Bytes
+    Source = data/tasks2.csv
+]
+
+Настройка PCIe:
+
+PCIe
+[
+    Lanes = 8
+    Throughput = 3.938 GB/s
+]
+
+Настройка ОЗУ:
+
+RAM
+[
+    Size = 32 GB
+    OS_SIZE = 1 GB
+]
+
+Настройка ядра:
+
+CORE
+[
+    Frequency = 2.2 GHz
+    OS_MAX_TASK = 100
+    Ratio = 0.3
+    Data_threshold = 1000000 Bytes
+]
+
+Настройка процессора:
+
+PROCESSOR
+[
+    Number_of_cores = 4
+]
+
+Настройка каналов процессора (профили):
+
+MASTER
+[
+    Channels = (0,1,2,3) (4) (5) (6)
+]
+
+SLAVE
+[
+    Channels = (0)
+]
