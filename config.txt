@@ -4,7 +4,7 @@ ETHERNET
 [
     IPG = 3.84 ns
     Payload = 1500 Bytes
-    Source = data/tasks2.csv
+    Source = data/tasks3.csv
 ]
 
 Настройка PCIe:
@@ -28,9 +28,7 @@ RAM
 CORE
 [
     Frequency = 2.2 GHz
-    OS_MAX_TASK = 100
-    Ratio = 0.3
-    Data_threshold = 1000000 Bytes
+    TTL_Level = 0.5
 ]
 
 Настройка процессора:

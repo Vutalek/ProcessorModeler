@@ -35,9 +35,7 @@ class Configure():
     def Core(self):
         result = self.sections["core"]
         result["frequency"] = float(result["frequency"][0]) * 10**9
-        result["os_max_task"] = int(result["os_max_task"][0])
-        result["ratio"] = float(result["ratio"][0])
-        result["data_threshold"] = int(result["data_threshold"][0])
+        result["ttl_level"] = float(result["ttl_level"][0])
         return result
     
     def RAM(self):

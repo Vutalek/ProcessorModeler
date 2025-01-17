@@ -12,14 +12,10 @@ from math import ceil
 # log - лог
 # unit_delay - элементарная задержка времени
 # frequency - тактовая частота
-# OS_MAX_TASK - максимальное количество заданий в очереди исполнения
 # task_q - локальная очередь задач
 # ethernet - формирователь Ethernet потока
 # mp_enable - флаг, обозначающий многопроцессорную архитектуру:
 # ядру назначается канал и процессор для пересылки на него задачи.
-# ratio - порог от 0 до 1 включения режима пересылки заданий
-# если task_q заполнена на ratio процентов, то включается режим многопроцессорности
-# и ядро может переслать задание привязанному к нему процессору
 # data_threshold - порог объёма пользовательских данных в байтах, при котором выгоднее переслать задание, чем выполнить его самому
 class Core(threading.Thread):
     def __init__(self, proc_id, id):
@@ -44,13 +40,11 @@ class Core(threading.Thread):
         configure = Configure()
         conf = configure.Core()
         self.frequency = conf["frequency"]
-        self.OS_MAX_TASK = conf["os_max_task"]
-        self.task_q = TaskQueue(conf["os_max_task"])
+        self.task_q = TaskQueue(-1)
         self.ethernet = Ethernet(f"{self.proc_id}_{self.id}_")
         self.ethernet.config()
         self.mp_enable = False
-        self.ratio = conf["ratio"]
-        self.data_threshold = conf["data_threshold"]
+        self.ttl_level = conf["ttl_level"]
 
     # подключение ОЗУ
     def connect_RAM(self, RAM):
@@ -99,9 +93,8 @@ class Core(threading.Thread):
                 task = self.task_q.read()
                 self.__do_task(task)
             else:
-                curr_ratio = self.task_q.fill_ratio()
                 task = self.task_q.read()
-                if curr_ratio >= self.ratio and task[1].data >= self.data_threshold:
+                if (1/self.PCIe.lanes[0].throughput + 1/self.frequency) * task[1].data < self.ttl_level * task[1].ttl:
                     self.__send_task(task)
                 else:
                     self.__do_task(task)
@@ -110,8 +103,13 @@ class Core(threading.Thread):
     # выполнение задания
     def __do_task(self, task):
         time_cost = task[1].cost / self.frequency
-        self.delay(ceil(time_cost / self.unit_delay))
-        self.log.append(f"Done {task[1].type} in {time_cost} seconds\n")   
+        if time_cost > task[1].ttl:
+            self.log.append(f"TTL_timeout {task[1].type}\n")
+        else:
+            self.delay(ceil(time_cost / self.unit_delay))
+            self.log.append(f"Done {task[1].type} in {time_cost} seconds\n")
+            self.delay(100)
+            self.RAM.dec_time(time_cost / 3)
     
     # пересылка задания на связанный процессор
     def __send_task(self, task):
@@ -122,6 +120,7 @@ class Core(threading.Thread):
             continue
         time_cost = q_out.get()
         self.log.append(f"Sended {task[1].type} to connected processor in {time_cost} seconds\n")  
+        self.RAM.dec_time(time_cost / 3)
         
     # запись работы в файл logs/Core{proc_id}_{id}.txt
     def write_log(self):
@@ -151,7 +150,10 @@ class InputCore(Core):
         if last_frame.task_id == -1:
             return
         elif self.RAM.can_write(last_frame.task.data):
-           self.RAM.write(last_frame.task)
+           time_cost = last_frame.task.data / (len(self.PCIe.channels[0]) * self.PCIe.lanes[0].throughput)
+           ttt = last_frame.task
+           ttt.ttl = ttt.ttl - time_cost
+           self.RAM.write(ttt)
            self.log.append(f"Received {last_frame.task.type}\n")
         else:
             self.log.append(f"Skipped {last_frame.task.type}\n")
@@ -169,7 +171,7 @@ class InputCore(Core):
             while not core.can_append_task():
                 ind_core = random.randint(0, len(self.cores) - 1)
                 core = self.cores[ind_core]
-            task = self.RAM.head_task()
+            task = self.RAM.min_ttl_task()
             self.RAM.run_task(task[0])
             time_cost = 2 / self.frequency
             self.delay(ceil(time_cost / self.unit_delay))

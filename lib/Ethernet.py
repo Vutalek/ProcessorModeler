@@ -18,11 +18,11 @@ class Frame:
     # получение строкового представления кадра в следующем формате
     # байты,межкадровый_интервал,номер_задачи,последний_ли
     # если последний, то в строку добавится 
-    # ,тип_задачи,цена_выполнения,объём_данных
+    # ,тип_задачи,цена_выполнения,объём_данных,время_жизни
     def __str__(self):
         string = f"{self.bytes},{self.IPG},{self.task_id},{self.islast}"
         if self.islast == 1:
-            string += f",{self.task.type},{self.task.cost},{self.task.data}"
+            string += f",{self.task.type},{self.task.cost},{self.task.data},{self.task.ttl}"
         return string
 
 # класс потока Ethernet.
@@ -73,7 +73,8 @@ class EthernetStream:
                 type = splitted[5]
                 cost = int(splitted[6])
                 data = int(splitted[7])
-                self.current_frame = Frame(bytes, ipg, t_id, islast, Task(type, cost, data))
+                ttl = float(splitted[8])
+                self.current_frame = Frame(bytes, ipg, t_id, islast, Task(type, cost, data, ttl))
             else:
                 self.current_frame = Frame(bytes, ipg, t_id, islast)
         
@@ -103,8 +104,8 @@ class Ethernet:
         self.tasks = []
         with open(conf["source"], "r") as file:
             for line in file:
-                size, type, cost = line.split(",")
-                self.tasks.append(Task(type, int(cost), int(size)))
+                size, type, cost, ttl = line.split(",")
+                self.tasks.append(Task(type, int(cost), int(size), float(ttl)/1000))
 
     # установка вручную списка заданий
     def set_tasks(self, tasks):
@@ -126,9 +127,9 @@ class Ethernet:
         stream = EthernetStream(self.prefix + str(self.counter))
         self.counter += 1
         # tcp open connection
-        stream.append_frames(Frame(82, self.IPG, -1, 1, Task("", 1, 1)))
-        stream.append_frames(Frame(82, self.IPG, -1, 1, Task("", 1, 1)))
-        stream.append_frames(Frame(82, self.IPG, -1, 1, Task("", 1, 1)))
+        stream.append_frames(Frame(82, self.IPG, -1, 1, Task("", 1, 1, 1)))
+        stream.append_frames(Frame(82, self.IPG, -1, 1, Task("", 1, 1, 1)))
+        stream.append_frames(Frame(82, self.IPG, -1, 1, Task("", 1, 1, 1)))
         # data
         for i in range(len(self.tasks)):
             n_packets = self.tasks[i].data // (self.payload - 52)
@@ -137,6 +138,6 @@ class Ethernet:
             last_packet = self.tasks[i].data % (self.payload - 52)
             stream.append_frames(Frame(last_packet + 82, self.IPG, i, 1, self.tasks[i]))
         # tcp close connection
-        stream.append_frames(Frame(82, self.IPG, -1, 1, Task("", 1, 1)))
-        stream.append_frames(Frame(82, self.IPG, -1, 1, Task("", 1, 1)))
+        stream.append_frames(Frame(82, self.IPG, -1, 1, Task("", 1, 1, 1)))
+        stream.append_frames(Frame(82, self.IPG, -1, 1, Task("", 1, 1, 1)))
         return stream

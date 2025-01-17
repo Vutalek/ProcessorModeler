@@ -80,7 +80,7 @@ task_plot <- function(data) {
 
 # отображает распределение времени исполнения
 time_plot <- function(data) {
-  plt <- ggplot(data = data, aes(x = time)) +
+  plt <- ggplot(data = data, aes(x = time, ..scaled..)) +
     geom_density(color = "purple", fill = "purple", alpha = 0.4, linewidth = 1, kernel = "epanechnikov") +
     theme_minimal()
   return(plt)
