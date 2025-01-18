@@ -60,7 +60,7 @@ Below are plots of distribution of tasks by cores inside processor. Here we also
 
 ```{r echo = FALSE, results = "asis", fig.height = 4}
 for (i in seq(length(cores))) {
-  cat(sprintf("### `%s` Core\n\n", i-1))
+  cat(sprintf("### `%s` Processor\n\n", i-1))
   grid.newpage()
   grid.draw(cores[[i]])
   cat("\n\n")
