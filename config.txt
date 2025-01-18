@@ -28,7 +28,7 @@ RAM
 CORE
 [
     Frequency = 2.2 GHz
-    TTL_Level = 0.5
+    TTL_Level = 0.15
 ]
 
 Настройка процессора:

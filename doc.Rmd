@@ -13,6 +13,8 @@ output:
 ---
 # Processor work report
 
+## General
+
 This report based on plotting graphs and calculating simple statistics based on log files.
 
 General information based on `General.txt` file:
@@ -20,26 +22,47 @@ General information based on `General.txt` file:
 * `r gen[1]`
 * `r gen[2]`
 
-```{r echo = FALSE, results = "asis"}
-for (i in seq(length(filenames))) {
-  cat(sprintf("## `%s`\n\n", filenames[i]))
-  cat("### Plots\n\n")
-  cat("Sequence of actions diagram:\n\n")
-  plot(seq_plots[[i]])
+\newpage
+## Ethernet stream
+
+Here is a count of full and partial frames in Ethernet stream.
+
+```{r echo = FALSE, fig.height = 8}
+plot(ethernet)
+```
+
+\newpage
+## Analyzing task status
+
+In the plot below presented count of tasks by their status:
+
+* done;
+* TTL timeout;
+* skipped.
+
+```{r echo = FALSE, fig.height = 8}
+plot(dts)
+```
+
+\newpage
+## Processors distribution
+
+We assume that tasks must distribute uniformly in all processors. Plot below shows real distribution after work of multiprocessing topology.
+
+```{r echo = FALSE, fig.height = 8}
+plot(procs)
+```
+
+\newpage
+## Cores distribution
+
+Below are plots of distribution of tasks by cores inside processor. Here we also assume that this distribution must be uniform.
+
+```{r echo = FALSE, results = "asis", fig.height = 4}
+for (i in seq(length(cores))) {
+  cat(sprintf("### `%s` Core\n\n", i-1))
+  grid.newpage()
+  grid.draw(cores[[i]])
   cat("\n\n")
-  cat("Distribution of actions by type of action:\n\n")
-  plot(type_plots[[i]])
-  cat("\n\n")
-  cat("Distribution of actions by type of task:\n\n")
-  plot(task_plots[[i]])
-  cat("\n\n")
-  cat("Density of distribution of spended time on one task:\n\n")
-  cat("For kernel density estimation was used Epanechnikov kernel.\n\n")
-  plot(time_plots[[i]])
-  cat("\n\n")
-  cat("### Statistics\n\n")
-  cat(sprintf("* Number of actions: %s\n", stats[[i]][1]))
-  cat(sprintf("* Mean time of executing one task: %s\n", stats[[i]][2]))
-  cat(sprintf("* Standart deviation of time of executing one task: %s\n\n", stats[[i]][3]))
 }
 ```

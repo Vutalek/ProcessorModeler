@@ -22,6 +22,8 @@
 - R (язык)
 - pandoc (для генерирования отчёта)
 - ggplots2 (для построения графиков в R)
+- grid
+- gridExtra
 - rmarkdown (для использования яыка разметки RMarkdown)
 - tinytex (для генерирования pdf из tex файлов)
 

@@ -1,9 +1,12 @@
 library(ggplot2)
+library(grid)
+library(gridExtra)
 library(rmarkdown)
 library(tinytex)
 Sys.setenv(RSTUDIO_PANDOC = "D:/Programming/R/BASE/RStudio/resources/app/bin/quarto/bin/tools")
 
-# парсер файлов логов ядер
+#### Парсер логов ####
+
 read_log_file <- function(fileName) {
   con <- file(fileName, open = "r")
   df <- data.frame(
@@ -40,7 +43,8 @@ read_log_file <- function(fileName) {
   return(df)
 }
 
-# чтение файла с общими выводами
+#### Чтение файла с временем работы ####
+
 read_general_file <- function() {
   con <- file("logs/General.txt", open = "r")
   lines <- readLines(con)
@@ -48,63 +52,119 @@ read_general_file <- function() {
   return(lines)
 }
 
-# график отображает последовательностьь выполненных действий
-seq_plot <- function(data) {
-  plt <- ggplot(data = data, aes(x = id, y = task, group = type, color = type)) +
-    geom_point() +
-    geom_line() +
+#### Исследование частично заполненных Ethernet фреймов ####
+
+ethernet_analyze <- function() {
+  con <- file("temp/stream0_0.txt", open = "r")
+  data = data.frame(
+    type = c("full", "partial"),
+    count = c(0, 0)
+  )
+  while (TRUE) {
+    line = readLines(con, n = 1)
+    if (length(line) == 0) {
+      break
+    }
+    splitted <- unlist(strsplit(line, ','))
+    if (splitted[2] == "1530") {
+      data[1, 2] = data[1, 2] + as.numeric(splitted[1])
+    } else {
+      data[2, 2] = data[2, 2] + as.numeric(splitted[1])
+    }
+  }
+  close(con)
+
+  plt <- ggplot(data = data, aes(x = type, y = count)) +
+    geom_col(color = "purple", fill = "purple", alpha = 0.4, linewidth = 1) + 
+    geom_text(aes(label = count), vjust = -1) + 
+    scale_y_continuous(expand = c(0.1, 0)) +
+    theme_minimal()
+  return(plt)
+}
+
+#### Исследование выполнения/пропуска задач ####
+
+overall_done_timeout_skipped <- function(data) {
+  result <- c(
+    nrow(data[data$type == "Done",]),
+    nrow(data[data$type == "TTL_timeout",]),
+    nrow(data[data$type == "Skipped",])
+  )
+  return(result)
+}
+
+done_timeout_analyze <- function(df) {
+  done_timeouts <- lapply(df, overall_done_timeout_skipped)
+  done <- sum(unlist(done_timeouts)[c(TRUE, FALSE, FALSE)])
+  timeouts <- sum(unlist(done_timeouts)[c(FALSE, TRUE, FALSE)])
+  skipped <- sum(unlist(done_timeouts)[c(FALSE, FALSE, TRUE)])
+  data = data.frame(
+    type = c("done", "timeout", "skipped"),
+    count = c(done, timeouts, skipped)
+  )
+  plt <- ggplot(data = data, aes(x = type, y = count)) +
+    geom_col(color = "purple", fill = "purple", alpha = 0.4, linewidth = 1) + 
+    geom_text(aes(label = count), vjust = -1) + 
+    scale_y_continuous(expand = c(0.1, 0)) +
+    theme_minimal()
+  return(plt)
+}
+
+#### Исследование распределения задач по ядрам внутри процессора ####
+
+core_dist <- function(data) {
+  seq <- ggplot(data = na.omit(data), aes(x = id, y = to_core, group = "whatever")) +
+    geom_point(color = "purple") +
+    geom_line(color = "purple") +
     theme_minimal() +
-    xlab("time")
+    xlab("time") +
+    ylab("core")
+  dist <- ggplot(data = na.omit(data), aes(x = to_core)) +
+    geom_bar(color = "purple", fill = "purple", alpha = 0.4, linewidth = 1) +
+    geom_text(stat = "count", aes(label = after_stat(count)), hjust = -0.5) +
+    coord_flip() +
+    scale_y_discrete(expand = c(0.1, 0)) +
+    theme_minimal() +
+    xlab("core")
+  plt <- grid.arrange(seq, dist, nrow = 2)
   return(plt)
 }
 
-# график показывает соотнешение количества заданий по типу операции
-type_plot <- function(data) {
-  plt <- ggplot(data = data, aes(x = type)) +
-    geom_bar(color = "purple", fill = "purple", alpha = 0.4, linewidth = 1) +
-    geom_text(stat = "count", aes(label = after_stat(count)), vjust = -1) +
+#### Исследование распределения задач по процессорам ####
+
+not_sended <- function(data) {
+  return(nrow(data[data$type != "Sended",]))
+}
+
+proc_dist <- function(df) {
+  ns <- unlist(lapply(df[c(FALSE, TRUE, TRUE, TRUE)], not_sended))
+  thirds <- split(ns, ceiling(seq_along(ns)/3))
+  count <- unlist(lapply(thirds, sum))
+  data = data.frame(
+    processor = seq_along(count),
+    count = count
+  )
+  plt <- ggplot(data = data, aes(x = processor, y = count)) +
+    geom_col(color = "purple", fill = "purple", alpha = 0.4, linewidth = 1) + 
+    geom_text(aes(label = count), vjust = -1) + 
     scale_y_continuous(expand = c(0.1, 0)) +
     theme_minimal()
   return(plt)
 }
 
-# график показывает соотнешение количества заданий по типу
-task_plot <- function(data) {
-  plt <- ggplot(data = data, aes(x = task)) +
-    geom_bar(color = "purple", fill = "purple", alpha = 0.4, linewidth = 1) +
-    geom_text(stat = "count", aes(label = after_stat(count)), vjust = -1) +
-    scale_y_continuous(expand = c(0.1, 0)) +
-    theme_minimal()
-  return(plt)
-}
+#### Анализ ####
 
-# отображает распределение времени исполнения
-time_plot <- function(data) {
-  plt <- ggplot(data = data, aes(x = time, ..scaled..)) +
-    geom_density(color = "purple", fill = "purple", alpha = 0.4, linewidth = 1, kernel = "epanechnikov") +
-    theme_minimal()
-  return(plt)
-}
-
-# расчёт статистик
-statistic <- function(data) {
-  count <- nrow(data)
-  mt <- mean(na.omit(data$time))
-  std <- sd(na.omit(data$time))
-  return(c(count, mt, std))
-}
-
-# чтение файлов
+# Чтение файлов
 filenames <- list.files("logs", full.names = TRUE)
 filenames <- filenames[-length(filenames)]
 df <- lapply(filenames, read_log_file)
+
+# Анализ
 gen <- read_general_file()
+ethernet <- ethernet_analyze()
+dts <- done_timeout_analyze(df)
+procs <- proc_dist(df)
+cores <- lapply(df[c(TRUE, FALSE, FALSE, FALSE)], core_dist)
 
-# построение графиков
-seq_plots <- lapply(df, seq_plot)
-type_plots <- lapply(df, type_plot)
-task_plots <- lapply(df, task_plot)
-time_plots <- lapply(df, time_plot)
-stats <- lapply(df, statistic)
-
-invisible(render("doc.Rmd", output_file = "output/report.pdf"))
+# Построение отчёта
+render("doc.Rmd", output_file = "output/report.pdf")
